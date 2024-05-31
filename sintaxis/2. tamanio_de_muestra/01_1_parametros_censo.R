@@ -7,15 +7,18 @@ library(samplesize4surveys)
 library(rio)
 library(data.table)
 library(tidyverse)
-#carga de upm
+# carga de upm
 upm <- import("insumos\\2. tamanio_de_muestra\\man_sec_upm_final_dmq.rds")
+
+# variable area 2000
+a2000 <- import("insumos\\2. tamanio_de_muestra\\parroquia_amadis_area.rds")
 
 #
 pob <- import("insumos/2. tamanio_de_muestra/nogit/CPV_Poblacion_2022_Nacional_05_30_2024_SA_DINEM.csv")
 names(pob) <- toupper(names(pob))
 
 #
-viv <- import("insumos/2. tamanio_de_muestra/nogit/viv_2022.csv")
+viv <- import("insumos/2. tamanio_de_muestra/nogit/CPV_Vivienda_2022_Nacional_05_30_2024_SA_DINEM.csv")
 names(viv) <- toupper(names(viv))
 
 viv1 <- viv %>%
@@ -32,12 +35,16 @@ viv1 <- viv %>%
                              paste0(pro, can, par, zon, sec, loc),
                              paste0(pro, can, par, zon, sec, man)),
          id_viv = paste0(id_man_loc, edi, viv),
-         particular = ifelse(V01 %in% c(1:8), 1, 0)) %>%
-  # filtramos las viviendas particulares
+         particular = ifelse(V01 %in% c(1:8), 1, 0),
+         # creacion de variable para emparejar area 2000
+         id_par = paste0(pro, can, par),
+         amadis = ifelse(zon == "999", "dis", "ama")) %>%
+  left_join(a2000 %>%
+              select(-per),
+            by = c("id_par", "amadis")) %>%
+  # filtramos las viviendas particulares y seleccionamos variables necesarias
   filter(particular == 1) %>%
-  #agregamos a nivel de provincia
-  group_by(pro) %>%
-  summarise(promedio_per = mean(TOTPER))
+  select(id_viv, area, particular)
 
 poblacion2022 <- pob %>%
   mutate(# creacion de mansec
@@ -62,7 +69,17 @@ poblacion2022 <- pob %>%
   # emparejamos man_sec
   left_join(upm %>%
               select(man_sec, id_upm),
-            by = "man_sec")
+            by = "man_sec") %>%
+  left_join(viv1,
+            by = "id_viv") %>%
+  # filtramos personas en viviendas particulares
+  filter(!is.na(particular)) %>%
+  # seleccionamos variables necesarias
+  select(pro, can, par, area, id_upm, id_viv, hog = INH, per = P00,
+         P03, P22, P23, P24, P25)
+
+# eliminamos bases que ya no usamos
+rm(pob, viv, viv1, a2000, upm)
 
 sum(is.na(poblacion2022$id_upm))
 
@@ -108,31 +125,51 @@ poblacion2022[(PEI_CIET13 | AUT_NBD == 1) , FFT_CIET19:=1]
 
 
 # calculo de la correlacion intraclase desde el censo
-pob1 <- poblacion2022 %>%
+pro_rho_do <- poblacion2022 %>%
   as.data.frame() %>%
   mutate(DO_CIET19 = ifelse(FT_CIET19 == 1 & is.na(DO_CIET19), 0, DO_CIET19)) %>%
   filter(!is.na(DO_CIET19)) %>%
-  filter(pro == "08")
+  group_by(pro) %>%
+  summarise(rho_do = ICC(DO_CIET19, id_upm)$ICC)
 
-ICC(pob1$DO_CIET19, pob1$id_upm)
+pro_rho_de <- poblacion2022 %>%
+  as.data.frame() %>%
+  mutate(DE_CIET13 = ifelse(PEA_CIET13 == 1 & is.na(DE_CIET13), 0, DE_CIET13)) %>%
+  filter(!is.na(DE_CIET13)) %>%
+  group_by(pro) %>%
+  summarise(rho_de = ICC(DE_CIET13, id_upm)$ICC)
 
-
-### agregado de la base a viviendas
-cen_viv <-
-  mutate()
-
-aggr_viv <- poblacion2022 %>%
+### parametros necesrios a nivel de provincia
+aggr_prov <- poblacion2022 %>%
   as.data.frame() %>%
   group_by(pro, id_viv) %>%
-  summarise(n_per = n()) %>%
-  group_by_(pro) %>%
-  summarise(promedio_per = mean(n_per))
+  summarise(N_per = n(),
+            N_per_pea = sum(PEA_CIET13, na.rm = T),
+            N_per_de = sum(DE_CIET13, na.rm = T),
+            N_per_ft = sum(FT_CIET19, na.rm = T),
+            N_per_do = sum(DO_CIET19, na.rm = T)) %>%
+  group_by(pro) %>%
+  summarise(promedio_per_viv = mean(N_per),
+            N_per = sum(N_per),
+            N_per_pea = sum(N_per_pea),
+            N_per_de = sum(N_per_de),
+            N_per_ft = sum(N_per_ft),
+            N_per_do = sum(N_per_do))
 
+parametros_prov <- aggr_prov %>%
+  mutate(tasa_de = N_per_de/N_per_pea,
+         tasa_do = N_per_do/N_per_ft,
+         r_pea = N_per_pea/N_per,
+         r_ft = N_per_ft/N_per) %>%
+  full_join(pro_rho_de,
+            by = "pro") %>%
+  full_join(pro_rho_do,
+            by = "pro") %>%
+  select(pro, N_per, b = promedio_per_viv,
+         N_per_pea, N_per_de, tasa_de, r_pea, rho_de,
+         N_per_ft, N_per_do, tasa_do, r_ft, rho_do)
 
-
-
-
-
+saveRDS(parametros_prov, "intermedios/2. tamanio_de_muestra/parametros_prov.rds")
 
 
 
