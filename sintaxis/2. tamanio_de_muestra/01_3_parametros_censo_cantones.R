@@ -124,10 +124,7 @@ poblacion2022[(PEA_CIET13== 1 & AUT_NBD== 1) , FT_CIET19:=NA]
 poblacion2022[(PEI_CIET13 | AUT_NBD == 1) , FFT_CIET19:=1]
 
 # Creación de la variable dominio 10
-
-
-
-poblacion2022<-poblacion2022 %>%
+poblacion2022 <- poblacion2022 %>%
   mutate( canton = paste0(pro, can),
          dom10=case_when(canton=="0101" ~ "30",
                          canton=="0601" ~ "31",

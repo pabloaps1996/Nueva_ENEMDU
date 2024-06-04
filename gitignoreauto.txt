@@ -1,0 +1,6 @@
+/insumos/2. tamanio_de_muestra/base proyecciones/CPV_30_11_2023.rar
+/insumos/2. tamanio_de_muestra/base proyecciones/poblacion2022_proyec_3011.csv
+/insumos/2. tamanio_de_muestra/nogit/CPV_2022_Nacional_05_30_2024_SA_DINEM/CPV_Hogar_2022_Nacional_05_30_2024_SA_DINEM.csv
+/insumos/2. tamanio_de_muestra/nogit/CPV_2022_Nacional_05_30_2024_SA_DINEM.zip
+/insumos/2. tamanio_de_muestra/nogit/CPV_Poblacion_2022_Nacional_05_30_2024_SA_DINEM.csv
+/insumos/2. tamanio_de_muestra/nogit/CPV_Vivienda_2022_Nacional_05_30_2024_SA_DINEM.csv
