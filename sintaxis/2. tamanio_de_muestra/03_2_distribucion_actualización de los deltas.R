@@ -6,12 +6,13 @@ rm(list = ls())
 library(rio)
 library(tidyverse)
 
+
 # Lectura marco
 marco <- import("./insumos/2. tamanio_de_muestra/marco_upm.rds")
 
 #lectura tamaño distribución desocupación
 
-load(file = "productos/2. tamanio_de_muestra/tamaño_distribucion.RData")
+load(file = "productos/2. tamanio_de_muestra/tamaño_distribucion_deltas.RData")
 
 
 marco1 <- marco %>%
@@ -78,7 +79,23 @@ control <- base %>%
   filter(pro != "20") %>%
   mutate(diff=tam_new-n)
 
-sum(control$tam_new); sum(control$n)
+control_pro <- base %>%
+  group_by(pro) %>%
+  summarise(n_plan = mean(tam_pro, na.rm = T)*12,
+            n_sel = sum(dis_f2)*12) %>%
+  ungroup() %>%
+  mutate(control = n_sel - n_plan)
+
+control_can <- base %>%
+  group_by(dom10) %>%
+  summarise(n_plan = mean(tam_can, na.rm = T)*6,
+            n_sel = sum(dis_f2)*6) %>%
+  ungroup() %>%
+  mutate(control = n_sel - n_plan)
+
+export(control, "./intermedios/2. tamanio_de_muestra/control.rds")
+
+
 
 
 
